@@ -1,3 +1,4 @@
+// Import Firebase functions
 import { 
   auth, database, storage, 
   ref, push, set, serverTimestamp,
@@ -5,7 +6,7 @@ import {
   onAuthStateChanged 
 } from './firebase.js';
 
-// عناصر DOM
+// Get DOM elements
 const addPostForm = document.getElementById('add-post-form');
 const postImageInput = document.getElementById('post-image');
 const chooseImageBtn = document.getElementById('choose-image-btn');
@@ -17,28 +18,32 @@ const removeImageBtn = document.getElementById('remove-image-btn');
 const loadingOverlay = document.getElementById('loading-overlay');
 const uploadProgress = document.getElementById('upload-progress');
 
-// التحقق من حالة المستخدم
+// Check user authentication state
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    // إذا لم يكن المستخدم مسجلاً الدخول، نقوم بتخزين الصفحة الحالية وتوجيهه للصفحة الرئيسية
+    // Redirect to index.html if not logged in
     localStorage.setItem('redirectUrl', 'add-post.html');
     window.location.href = 'index.html';
+    return;
   }
+  
+  // User is logged in, we can proceed
+  console.log('User is logged in:', user.uid);
 });
 
-// اختيار صورة من المعرض
+// Choose image from gallery
 chooseImageBtn.addEventListener('click', () => {
   postImageInput.removeAttribute('capture');
   postImageInput.click();
 });
 
-// فتح الكاميرا
+// Open camera
 cameraBtn.addEventListener('click', () => {
   postImageInput.setAttribute('capture', 'environment');
   postImageInput.click();
 });
 
-// عرض معاينة الصورة
+// Display image preview
 postImageInput.addEventListener('change', function() {
   if (this.files && this.files[0]) {
     const file = this.files[0];
@@ -53,14 +58,14 @@ postImageInput.addEventListener('change', function() {
   }
 });
 
-// إزالة الصورة المختارة
+// Remove selected image
 removeImageBtn.addEventListener('click', () => {
   postImageInput.value = '';
   imageName.textContent = 'لم يتم اختيار صورة';
   imagePreview.classList.add('hidden');
 });
 
-// نشر منشور جديد
+// Handle form submission
 addPostForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -87,32 +92,24 @@ addPostForm.addEventListener('submit', async (e) => {
     loadingOverlay.classList.remove('hidden');
     let imageUrl = '';
     
-    // إذا تم اختيار صورة، نقوم برفعها
+    // Upload image if selected
     if (imageFile) {
-      const storageReference = storageRef(storage, 'posts/' + Date.now() + '_' + imageFile.name);
-      const uploadTask = uploadBytesResumable(storageReference, imageFile);
-      
-      // نراقب تقدم الرفع
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          uploadProgress.style.width = progress + '%';
-        },
-        (error) => {
-          console.error('Error uploading image:', error);
-          alert('فشل في رفع الصورة: ' + error.message);
-          loadingOverlay.classList.add('hidden');
-        },
-        async () => {
-          // بعد اكتمال الرفع، نحصل على رابط التحميل
-          imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          await savePostToDatabase(user.uid, title, description, price, location, phone, imageUrl);
-        }
-      );
-    } else {
-      // إذا لم يتم اختيار صورة، نحفظ المنشور بدون صورة
-      await savePostToDatabase(user.uid, title, description, price, location, phone, imageUrl);
+      imageUrl = await uploadImage(imageFile);
     }
+    
+    // Save post to database
+    await savePostToDatabase(user.uid, title, description, price, location, phone, imageUrl);
+    
+    alert('تم نشر المنشور بنجاح!');
+    addPostForm.reset();
+    imagePreview.classList.add('hidden');
+    loadingOverlay.classList.add('hidden');
+    
+    // Redirect to home page after 2 seconds
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 2000);
+    
   } catch (error) {
     console.error('Error adding post:', error);
     alert('حدث خطأ أثناء إضافة المنشور: ' + error.message);
@@ -120,7 +117,33 @@ addPostForm.addEventListener('submit', async (e) => {
   }
 });
 
-// حفظ المنشور في قاعدة البيانات
+// Upload image to Firebase Storage
+async function uploadImage(imageFile) {
+  return new Promise((resolve, reject) => {
+    const storageReference = storageRef(storage, 'posts/' + Date.now() + '_' + imageFile.name);
+    const uploadTask = uploadBytesResumable(storageReference, imageFile);
+    
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        uploadProgress.style.width = progress + '%';
+      },
+      (error) => {
+        reject(error);
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        } catch (error) {
+          reject(error);
+        }
+      }
+    );
+  });
+}
+
+// Save post to Firebase Database
 async function savePostToDatabase(userId, title, description, price, location, phone, imageUrl) {
   try {
     const postsRef = ref(database, 'posts');
@@ -138,9 +161,12 @@ async function savePostToDatabase(userId, title, description, price, location, p
       createdAt: serverTimestamp()
     });
     
-    alert('تم نشر المنشور بنجاح!');
-    addPostForm.reset();
-    imagePreview.classList.add('hidden');
+    return true;
+  } catch (error) {
+    console.error('Error saving post:', error);
+    throw error;
+  }
+}add('hidden');
     loadingOverlay.classList.add('hidden');
     
     // العودة إلى الصفحة الرئيسية بعد ثانيتين

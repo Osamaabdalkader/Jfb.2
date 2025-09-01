@@ -47,13 +47,14 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 const storage = getStorage(app);
 
-// تصدير الكائنات للاستخدام في ملفات أخرى
+// Export for use in other modules
 export { 
   app, analytics, auth, database, storage,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, 
   onAuthStateChanged, signOut, ref, set, push, onValue, 
   serverTimestamp, update, remove, query, orderByChild, 
   equalTo, storageRef, uploadBytesResumable, getDownloadURL 
+};uploadBytesResumable, getDownloadURL 
 };Changed, signOut 
 };EmailAndPassword, onAuthStateChanged, signOut,
   ref, set, push, onValue, serverTimestamp, update, remove, query, orderByChild, equalTo,
